@@ -1,0 +1,140 @@
+<head>
+	<meta charset="utf-8" />
+	<script src="https://code.jquery.com/jquery-3.6.0.slim.min.js"
+		integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script>
+	<style>
+		.text-left {
+			text-align: left;
+		}
+	</style>
+</head>
+
+<body>
+	<form name="calculator_sac" class="vertical">
+		<div>
+			<label>
+				Valor:
+				<input autocomplete="off" spellcheck="false" autocorrect="off" name="valor_total" type="text">
+			</label>
+		</div>
+		<div>
+			<label>
+				Número de Meses:
+				<input autocomplete="off" spellcheck="false" autocorrect="off" name="prazo" type="text">
+			</label>
+		</div>
+		<div>
+			<label>
+				Taxa de Juros (%) ao ano:
+				<input autocomplete="off" spellcheck="false" autocorrect="off" size="10" name="taxa" type="text">
+			</label>
+		</div>
+		<div>
+			<label>
+				Amortização extra mensal:
+				<input autocomplete="off" spellcheck="false" autocorrect="off" size="10" name="amortizacao_extra"
+					value="0" type="text">
+			</label>
+		</div>
+	</form>
+	<div>
+		<button onclick="calculaTabela()">calcular</button>
+	</div>
+
+	<div id="sac_result"></div>
+
+	<script>
+		function Tabela() {
+			this.header = [];
+			this.linhas = [];
+			this.footer = [];
+		}
+
+		function floatToHuman(valor) {
+			v = valor.toFixed(2).replaceAll('.', '') + "";
+			v = v.replace(/(\d{1})(\d{8})$/, "$1.$2");
+			v = v.replace(/(\d{1})(\d{5})$/, "$1.$2");
+			v = v.replace(/(\d{1})(\d{1,2})$/, "$1,$2");
+			return v;
+		}
+
+		function normalizaDecimalPtBr(numStr) {
+			return numStr.replaceAll('.', '').replaceAll(',', '.');
+		}
+
+		function calculaTabela() {
+			var calculatorform = document.forms.calculator_sac;
+			comp_sac(calculatorform.prazo.value, normalizaDecimalPtBr(calculatorform.taxa.value), normalizaDecimalPtBr(calculatorform.valor_total.value), calculatorform.periodo, normalizaDecimalPtBr(calculatorform.amortizacao_extra.value));
+		}
+
+		function comp_sac(prazo, taxa, valor_total, aperiodo, amortizacao_extra) {
+			let tabela = new Tabela();
+			prazo = parseFloat(prazo);
+			taxa = parseFloat(taxa) / 100;
+			valor_total = parseFloat(valor_total);
+			taxa = Math.pow(1 + taxa, 1.0 / 12) - 1;
+			const amortizacao = valor_total / prazo;
+			let totalJuros = 0;
+			let totalAmort = 0;
+			let totalParc = 0;
+			const valor_total_aux = valor_total;
+			let juros_devido = 0;
+			for (let i = 0; i < prazo; i++) {
+				juros_devido += valor_total * taxa;
+				valor_total -= amortizacao;
+			}
+			valor_total = valor_total_aux;
+			console.log(totalJuros)
+			for (let i = 0; i < prazo; i++) {
+				if (totalAmort > valor_total_aux) {
+					//break;
+				}
+				const parcela = amortizacao + valor_total * taxa;
+				const juros = valor_total * taxa;
+				const saldo_devedor = valor_total - amortizacao;
+				totalJuros += juros;
+				totalAmort += amortizacao;
+				totalParc += parcela;
+				tabela.linhas.push([(i + 1) + ((i + 1) % 12 === 0 ? ' <small><em>(' + parseInt((i + 1) / 12) + ' ano(s))</em></small>' : '') + "", floatToHuman(parcela), floatToHuman(amortizacao), floatToHuman(totalAmort), floatToHuman(juros), floatToHuman(juros_devido - totalJuros), floatToHuman(saldo_devedor)]);
+				valor_total -= amortizacao;
+				//juros_devido -= amortizacao_extra;
+				//valor_total -= amortizacao_extra;
+				if (i == 18) {
+					totalAmort += 22000;
+				}
+			}
+			tabela.footer = [" » ", floatToHuman(totalParc), floatToHuman(totalAmort), '', floatToHuman(totalJuros), "« TOTAIS"];
+			if (tabela != null) {
+				if (tabela.linhas.length > 1000) {
+					resultado.semErro = false;
+					return resultado;
+				}
+				tabela.header = ["#", "Parcelas", "Amortizações", "Acum. Amortizações", "Juros", "Juros Devido", "Saldo Devedor"];
+				let html = "<table class='numbers'>";
+				html += '<tr class="alt"><th>' + tabela.header[0] + '</th><th>' + tabela.header[1] + '</th><th>' + tabela.header[2] + '</th><th>' + tabela.header[3] + '</th><th>' + tabela.header[4] + '</th><th>' + tabela.header[5] + '</th><th>' + tabela.header[5] + '</th></tr>';
+				for (let ii in tabela.linhas) {
+					const lin = tabela.linhas[ii];
+					const classAlt = ii % 2 == 0 ? '' : 'class="alt"';
+					html += '<tr ' + classAlt + '><th class="text-left">' + lin[0] + '</th><td>' + lin[1] + '</td><td>' + lin[2] + '</td><td>' + lin[3] + '</td><td>' + lin[4] + '</td><td>' + lin[5] + '</td><td>' + lin[6] + '</td></tr>';
+				}
+				html += '<tr><th>' + tabela.footer[0] + '</th><td>' + tabela.footer[1] + '</td><td>' + tabela.footer[2] + '</td><td>' + tabela.footer[3] + '</td><th>' + tabela.footer[4] + '</th></tr></table>';
+				html += 'Parcela = Amortização + Juro';
+				document.getElementById('sac_result').innerHTML = html;
+			}
+		}
+
+		function preencherForm(valorTotal, prazo, taxa, amortizacao_extra) {
+			var form = document.forms.calculator_sac;
+			$('[name=valor_total]').val(valorTotal);
+			$('[name=prazo]').val(prazo);
+			$('[name=taxa]').val(taxa);
+			$('[name=amortizacao_extra]').val(amortizacao_extra);
+		}
+
+		//preencherForm(137500, 360, '7,35', 300);
+		preencherForm(170000, 420, '9,4', 0);
+		calculaTabela();
+	</script>
+</body>
+
+</html>
